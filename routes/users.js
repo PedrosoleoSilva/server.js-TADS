@@ -1,7 +1,10 @@
 const express = require("express");
-const { saveUser, findUserByEmail } = require("../database/users");
+const { saveUser, findUserByEmail, findUserById } = require("../database/users");
 const router = express.Router();
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");//importa a biblioteca
+const auth = require("../middlewares/auth");
+
 
 router.post("/register", async (req,res)=>{ //post cadastrar
     try {
@@ -27,6 +30,31 @@ router.post("/register", async (req,res)=>{ //post cadastrar
     }  
 });
 
+router.post("/login", async (req,res)=>{
+    const email = req.body.email;
+    const password = req.body.password;
+    const user = await findUserByEmail(email); //verifica se email esta cadastrado no banco
+    if(!user) return res.status(401).send(); //nao tiver email vai aparecer erro 404
+    const isSamePassword = bcrypt.compareSync(password, user.password);//compara a senha
+    if(!isSamePassword) return res.status(401).send(); //verifica se a senha esta certa
+
+    const token = jwt.sign({
+        userId: user.id,
+        name: user.name
+    }, process.env.SECRET);
+    res.json({
+        success: true,
+        token
+    })
+});
+
+router.get("/profile", auth,  async (req,res)=>{
+    const user = await findUserById(req.user.userId);
+    delete user.password;
+    res.json({
+        user
+    })
+})
 
 
 module.exports = {
